@@ -212,7 +212,7 @@ class OptimizedModule(torch.nn.Module):
     @property
     def _torchdynamo_orig_callable(self):
         if ( not hasattr(self, '__torchdynamo_orig_callable') ) or self.__torchdynamo_orig_callable is None:
-            return lambda : innermost_fn(self)
+            self.__torchdynamo_orig_callable = lambda : innermost_fn(self)
         return self.__torchdynamo_orig_callable
 
     @_torchdynamo_orig_callable.setter
@@ -223,7 +223,7 @@ class OptimizedModule(torch.nn.Module):
     @property
     def get_compiler_config(self):
         if ( not hasattr(self, '_get_compiler_config') ) or self._get_compiler_config is None:
-            return lambda : self.dynamo_ctx.compiler_config
+            self._get_compiler_config = lambda : self.dynamo_ctx.compiler_config
         return self._get_compiler_config
 
     @get_compiler_config.setter
@@ -296,9 +296,11 @@ class _TorchDynamoContext:
         super().__init__()
         assert callable(callback) or callback is False or callback is None
         self.callback: DynamoCallback = callback
+        self.backend_ctx_ctor = backend_ctx_ctor
         self.prior: Union[Unset, DynamoCallback] = unset
         self.first_ctx = first_ctx
         self.export = export
+        self.dynamic = dynamic
         self.compiler_config = compiler_config
         self.cleanup_fns: List[Callable[[], Any]] = []
         self.enter_exit_hooks = []
@@ -345,13 +347,6 @@ class _TorchDynamoContext:
         for cleanup in self.cleanup_fns:
             cleanup()
         self.cleanup_fns.clear()
-
-    def __getstate__(self):
-        state = dict(self.__dict__)
-        state.pop("callback", None)
-        state.pop("on_enter", None)
-        state.pop("__call__", None)
-        return state
 
     def __call__(self, fn):
         # public api for compiler config/options
@@ -530,6 +525,9 @@ class OptimizeContext(_TorchDynamoContext):
             compiler_config=compiler_config,
         )
 
+    def __reduce__(self):
+        return (self.__class__, (None, self.backend_ctx_ctor, self.first_ctx), {'export':self.export, 'dynamic':self.dynamic, 'compiler_config':self.compiler_config})
+
 
 class RunOnlyContext(_TorchDynamoContext):
     def __init__(self):
@@ -538,6 +536,9 @@ class RunOnlyContext(_TorchDynamoContext):
             torch._dynamo.mutation_guard.GenerationTracker.generation += 1
 
         super().__init__(callback=False, on_enter=on_enter)
+
+    def __reduce__(self):
+        return (self.__class__, ())
 
 
 class DisableContext(_TorchDynamoContext):
@@ -590,6 +591,9 @@ class DisableContext(_TorchDynamoContext):
         _fn._torchdynamo_orig_callable = fn  # type: ignore[attr-defined]
 
         return _fn
+
+    def __reduce__(self):
+        return (self.__class__, ())
 
 
 def _optimize_catch_errors(

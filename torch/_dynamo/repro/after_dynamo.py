@@ -61,6 +61,8 @@ class WrapBackendDebug:
         self._torchdynamo_orig_callable = unconfigured_compiler_fn  # type: ignore[attr-defined]
         if hasattr(unconfigured_compiler_fn, "compiler_name"):
             self.__name__ = unconfigured_compiler_fn.compiler_name
+        else:
+            self.__name__ = compiler_name
         if hasattr(unconfigured_compiler_fn, "get_compiler_config"):
             self.get_compiler_config = unconfigured_compiler_fn.get_compiler_config  # type: ignore[attr-defined]
         self.compiler_name = compiler_name

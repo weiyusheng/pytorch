@@ -299,6 +299,11 @@ class ConvertFrameAssert:
         self.one_graph = one_graph
         self.export = export
         self.export_constraints = export_constraints
+        if hasattr(compiler_fn, "compiler_name"):
+            self.__name__ = compiler_fn.compiler_name
+            self.compiler_name = compiler_fn.compiler_name
+        if hasattr(compiler_fn, "get_compiler_config"):
+            self.get_compiler_config = compiler_fn.get_compiler_config  # type: ignore[attr-defined]
 
     @property
     def _clone_with_backend(self, backend):
@@ -825,6 +830,11 @@ class ConvertFrame:
         self.inner_convert = convert_frame_assert(compiler_fn, one_graph=False)
         self._torchdynamo_orig_callable = compiler_fn  # type: ignore[attr-defined]
         self.hooks = hooks
+        if hasattr(compiler_fn, "compiler_name"):
+            self.__name__ = compiler_fn.compiler_name
+            self.compiler_name = compiler_fn.compiler_name
+        if hasattr(compiler_fn, "get_compiler_config"):
+            self.get_compiler_config = compiler_fn.get_compiler_config  # type: ignore[attr-defined]
 
     @property
     def _clone_with_backend(self):
@@ -946,6 +956,11 @@ class CatchErrorsWrapper:
     def __init__(self, callback, hooks):
         self._torchdynamo_orig_callable = callback
         self.hooks = hooks
+        if hasattr(callback, "compiler_name"):
+            self.__name__ = callback.compiler_name
+            self.compiler_name = callback.compiler_name
+        if hasattr(callback, "get_compiler_config"):
+            self.get_compiler_config = callback.get_compiler_config  # type: ignore[attr-defined]
 
     def __call__(self, frame, cache_entry, frame_state):
         assert frame_state is not None

@@ -2210,7 +2210,7 @@ class InstructionTranslator(InstructionTranslatorBase):
         # Fallback to eager in case of a graph break inside vmap
         eager = torch._dynamo.lookup_backend("eager")
         compiler_fn = inspect.getattr_static(
-            self.output.compiler_fn, "compiler_fn", self.output.compiler_fn
+            innermost_fn(self.output.compiler_fn), "compiler_fn", innermost_fn(self.output.compiler_fn)
         )
         ci = torch._C._functorch.peek_interpreter_stack()
         forbidden_keys = (
@@ -2218,7 +2218,7 @@ class InstructionTranslator(InstructionTranslatorBase):
             torch._C._functorch.TransformType.Grad,
             torch._C._functorch.TransformType.Jvp,
         )
-        if ci is not None and ci.key() in forbidden_keys and innermost_fn(compiler_fn).compiler_fn is not eager:
+        if ci is not None and ci.key() in forbidden_keys and compiler_fn is not eager:
             # if it reaches here, it means Dynamo failed to inline a functorch function
             name = ci.key().name.lower()
             msg = f"torch.func.{name}(fn) requires the function to be inlined by dynamo"

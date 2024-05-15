@@ -127,14 +127,14 @@ class OptimizedModule(torch.nn.Module):
     forward method to optimized self.forward method.
     """
 
-    __torchdynamo_orig_callable: Callable[..., Any]
-    _get_compiler_config: Callable[[], Any]
+    _torchdynamo_orig_callable: Callable[..., Any]
+    get_compiler_config: Callable[[], Any]
 
     _opt_mod_attributes = {
         "_orig_mod",
         "dynamo_ctx",
-        "__torchdynamo_orig_callable",
-        "_get_compiler_config",
+        "_torchdynamo_orig_callable",
+        "get_compiler_config",
         "forward",
         "_forward",
         "__dict__",
@@ -168,10 +168,11 @@ class OptimizedModule(torch.nn.Module):
             self._forward = self.forward
             self.forward = self._call_lazy_check
 
+    def __reduce__(self):
+        return (self.__class__, (self._orig_mod, self.dynamo_ctx))
+
     def __getstate__(self):
         state = dict(self.__dict__)
-        state.pop("__torchdynamo_orig_callable", None)
-        state.pop("_get_compiler_config", None)
         state.pop("forward", None)
         state.pop("__call__", None)
         return state
@@ -208,28 +209,6 @@ class OptimizedModule(torch.nn.Module):
         return orig_mod_attrs + [
             attr for attr in super().__dir__() if attr not in orig_mod_attrs
         ]
-
-    @property
-    def _torchdynamo_orig_callable(self):
-        if ( not hasattr(self, '__torchdynamo_orig_callable') ) or self.__torchdynamo_orig_callable is None:
-            self.__torchdynamo_orig_callable = lambda : innermost_fn(self)
-        return self.__torchdynamo_orig_callable
-
-    @_torchdynamo_orig_callable.setter
-    def _torchdynamo_orig_callable(self, fn):
-        assert callable(fn)
-        self.__torchdynamo_orig_callable = fn
-
-    @property
-    def get_compiler_config(self):
-        if ( not hasattr(self, '_get_compiler_config') ) or self._get_compiler_config is None:
-            self._get_compiler_config = lambda : self.dynamo_ctx.compiler_config
-        return self._get_compiler_config
-
-    @get_compiler_config.setter
-    def get_compiler_config(self, fn):
-        assert callable(fn)
-        self._get_compiler_config = fn
 
 def remove_from_cache(f):
     """
@@ -372,7 +351,7 @@ class _TorchDynamoContext:
 
             # when compiling torch.nn.Module,
             # provide public api OptimizedModule.get_compiler_config()
-            assert not hasattr(new_mod, "_get_compiler_config")
+            assert not hasattr(new_mod, "get_compiler_config")
             new_mod.get_compiler_config = get_compiler_config
 
             return new_mod
@@ -455,7 +434,7 @@ class _TorchDynamoContext:
 
         # when compiling user function instead of nn.Module
         # provide public api _fn.get_compiler_config()
-        assert not hasattr(_fn, "_get_compiler_config")
+        assert not hasattr(_fn, "get_compiler_config")
         _fn.get_compiler_config = get_compiler_config  # type: ignore[attr-defined]
 
         # If the function is called using torch._dynamo.optimize decorator, we

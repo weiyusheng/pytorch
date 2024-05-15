@@ -505,7 +505,7 @@ class OptimizeContext(_TorchDynamoContext):
         )
 
     def __reduce__(self):
-        return (self.__class__, (None, self.backend_ctx_ctor, self.first_ctx), {'export':self.export, 'dynamic':self.dynamic, 'compiler_config':self.compiler_config})
+        return (self.__class__, (self.callback, self.backend_ctx_ctor, self.first_ctx), {'export':self.export, 'dynamic':self.dynamic, 'compiler_config':self.compiler_config})
 
 
 class RunOnlyContext(_TorchDynamoContext):

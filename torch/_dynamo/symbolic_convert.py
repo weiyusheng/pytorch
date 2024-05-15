@@ -108,6 +108,7 @@ from .variables.user_defined import (
     UserDefinedClassVariable,
     UserDefinedObjectVariable,
 )
+from .eval_frame import innermost_fn
 
 log = logging.getLogger(__name__)
 graph_break_log = torch._logging.getArtifactLogger(__name__, "graph_breaks")
@@ -2217,7 +2218,7 @@ class InstructionTranslator(InstructionTranslatorBase):
             torch._C._functorch.TransformType.Grad,
             torch._C._functorch.TransformType.Jvp,
         )
-        if ci is not None and ci.key() in forbidden_keys and compiler_fn is not eager:
+        if ci is not None and ci.key() in forbidden_keys and innermost_fn(compiler_fn).compiler_fn is not eager:
             # if it reaches here, it means Dynamo failed to inline a functorch function
             name = ci.key().name.lower()
             msg = f"torch.func.{name}(fn) requires the function to be inlined by dynamo"
